@@ -1,0 +1,49 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+require 'yaml'
+
+local_config = 'local.yaml'
+if !File.exist?(local_config)
+    STDERR.puts "local.yaml not found, creating one using example.local.yaml"
+    `cp example.local.yaml local.yaml`
+end
+settings = YAML.load_file local_config
+
+Vagrant.configure("2") do |config|
+
+  # bastion ips xxx.xxx.xxx.2
+  (1..settings['bastion']['count']).each do |i|
+    hostname = "bastion#{i}"
+    config.vm.define hostname do |machine|
+      machine.vm.box_url = "https://cloud-images.ubuntu.com/xenial/current/xenial-server-cloudimg-amd64-vagrant.box"
+      machine.vm.box = "centos/7"
+      machine.vm.hostname = hostname
+      machine.vm.network :private_network, ip: "#{settings['general']['network']}.2"
+      machine.vm.network "forwarded_port", guest: 8500, host: 8500
+      machine.vm.provider :virtualbox do |v|
+        v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+        v.customize ["modifyvm", :id, "--memory", settings['bastion']['memory']]
+        v.customize ["modifyvm", :id, "--name", hostname]
+      end
+      machine.vm.provision "shell", path: "setup.sh"
+    end
+  end
+
+  (1..settings['cassandra']['count']).each do |i|
+    hostname = "cassandra#{i}"
+    config.vm.define hostname do |machine|
+      machine.vm.box_url = "https://cloud-images.ubuntu.com/xenial/current/xenial-server-cloudimg-amd64-vagrant.box"
+      machine.vm.box = "centos/7"
+      machine.vm.hostname = hostname
+
+      machine.vm.network :private_network, ip: "#{settings['general']['network']}.4#{i}"
+      machine.vm.provider :virtualbox do |v|
+        v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+        v.customize ["modifyvm", :id, "--memory", settings['cassandra']['memory']]
+        v.customize ["modifyvm", :id, "--name", hostname]
+      end
+      machine.vm.provision "shell", path: "setup.sh"
+    end
+  end
+end
+

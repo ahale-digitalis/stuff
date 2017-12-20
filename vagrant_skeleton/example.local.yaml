@@ -1,0 +1,10 @@
+general:
+  network: 10.200.2
+
+bastion:
+  count: 1
+  memory: 1024
+
+cassandra:
+  count: 1
+  memory: 4096
